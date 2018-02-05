@@ -1,0 +1,81 @@
+
+/*
+Функции синтеза снимков на определенные даты. 
+Работают на основе анализа исторических данных: 
+  * строятся коэффициенты регрессии TOAR в зависимости от номера дня
+  * затем по номеру дня генерируются ожидаемые TOAR на этот день 
+    (см. файлы syntesationL8 / L8syntMedians).
+  
+*/
+var TS = require("users/iglushko/ALERT2018:TimeSeries_test");
+var cloudMASK = require("users/iglushko/ALERT2018:L8CloudFilter");
+
+
+var AOI = ee.FeatureCollection('users/iglushko/FE/aoife');
+
+
+// На какой период рассчитываются коэффициенты
+
+var WINTER = "16_17";  // На период до начала зимы 16-17
+// var WINTER = "17_18";  // На период до начала зимы 17-18
+
+// Параметры настроек на конкретную зиму
+function getParams (winter){
+  if (winter == '16_17')
+    return {'finalDate': '2016-10-26', 'asset': 'L8Synthesis/before2017/'};
+  if (winter == '17_18')
+    return {'finalDate': '2017-10-26', 'asset': 'L8Synthesis/2017_2018/'};
+  return {};
+}
+
+var params = getParams(WINTER);
+
+
+// Возьмем область интересов и построим для нее модель изменений в выбранном канале
+
+var l8toa = ee.ImageCollection('LANDSAT/LC8_L1T_TOA_FMASK')
+  .filterBounds(AOI)
+  .filterDate('2010-01-01', params.finalDate)
+  .select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'fmask'])  
+  .map(function(image) {
+    return image.clip(AOI).float();
+  });
+//Отфильтруем облачность:
+var l8toaMasked = l8toa
+  .map(function(img){
+    // Ожидаемый порядок слоев в изображениях: "blue", "green", "red", "nir", "swir1", "swir2"
+    
+    // var img_selected = img.select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7'])
+    //  .rename(["blue", "green", "red", "nir", "swir1", "swir2"]);
+    //var isCloud = cloudMASK.cloudL8Net.cloudMask(img_selected, 0.1);
+    // return img.updateMask(isCloud.not());
+    
+    return img;
+  });
+
+for (var BAND_NUM = 2; BAND_NUM<8; BAND_NUM++){
+  var BAND_NAME = 'B' + BAND_NUM;
+  var filteredLandsat8 = TS.timeSeries.prepareCollection(
+    l8toaMasked.select([BAND_NAME, 'fmask']), 'FMASK');
+  var fitted_coefs = TS.timeSeries.fit(filteredLandsat8, BAND_NAME).multiply(10000).int16();
+  
+  // Сохраним коэффициенты в виде изображения в Asset под именем:
+  var img_name = 'coef_L8_int_' + BAND_NAME;
+  
+  Export.image.toAsset({
+    image: fitted_coefs,
+    description: img_name,
+    assetId: params.asset + img_name,
+    scale: 30,
+    region: AOI,  
+    maxPixels: 2000000000
+  });
+}
+
+Map.addLayer(fitted_coefs, {bands:['cos'], 'min': -1, 'max': 1}, 'cos', false);
+Map.addLayer(ee.Image(l8toaMasked.toList(1, 33).get(0)));
+
+// Map.addLayer(AOI, {}, 'AOI', false);
+// Map.centerObject(AOI);
+
+

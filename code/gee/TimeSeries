@@ -1,0 +1,181 @@
+// GLOBAL names
+
+var GLOBALS = {
+  TIME_VARIABLE_NAME: 'dnum',
+  PREDICTORS: ee.List(['constant', 'cos', 'sin', 'cos2', 'sin2', 'cos3', 'sin3'])
+  // PREDICTORS: ee.List(['constant', 'cos', 'sin', 'cos2', 'sin2'])
+
+};
+
+
+////////////////////////////////////////////////////////////////////////
+// Вспомогательные функции по фильтрации облаков и т.п
+////////////////////////////////////////////////////////////////////////
+
+// Для удобства соберем фукнкции обработки в зависимости от типа сенсора
+var maskCloudsL8 = function(image) {
+  var quality = image.select('BQA');
+  var cloud01 = quality.eq(61440);
+  var cloud02 = quality.eq(56320);
+  var cloud03 = quality.eq(53248);
+  var cloud04 = quality.eq(45056);
+  var cloud05 = quality.eq(28672);
+  var cloud06 = quality.eq(36896);
+  var mask =(cloud01.or(cloud02).or(cloud03).or(cloud04).or(cloud05).or(cloud06)).not();
+  return image.updateMask(mask);
+};
+function filterCloudL7(img){
+  var cloud =  ee.Algorithms.Landsat.simpleCloudScore(img); 
+  var score =  cloud.select(['cloud']).lte(30);
+  return img.updateMask(score);
+}
+// Sentinel-2
+function filterCloudS2(img){
+  var cloudMask = img.select('QA60').eq(0);
+  return img.mask(img.mask().and(cloudMask));
+}
+
+var L8Processor = {
+  'collection_id': 'LANDSAT8',
+  'cloudFilter': maskCloudsL8
+};
+var L7Processor = {
+  'collection_id': 'LANDSAT7',
+  'cloudFilter': filterCloudL7
+};
+var S2Processor = {
+  'collection_id': 'SENTINEL2',
+  'cloudFilter': filterCloudS2
+};
+// По ID коллекции вернем функции для обработки этой коллекции
+function getProcessor(collection_id){
+  if (collection_id === L8Processor.collection_id) return L8Processor;
+  if (collection_id === L7Processor.collection_id) return L7Processor;
+  if (collection_id === S2Processor.collection_id) return S2Processor;
+
+  return false;
+}
+
+
+//////////////////////////////////////////////////////////////////////
+// Основные фукнции
+//////////////////////////////////////////////////////////////////////
+
+// This field contains UNIX time in milliseconds.
+var timeField = 'system:time_start';
+
+
+var addTimeVariable = function(image) {
+  // Compute time in fractional years since the epoch.
+  var date = ee.Date(image.get(timeField));
+  var years = date.difference(ee.Date('1970-01-01'), 'year');
+  var dnum = date.getFraction('year');
+  
+  // Add a time band.
+  return image
+  //.addBands(ee.Image(years).rename('t').float())
+  .addBands(ee.Image(dnum).rename(GLOBALS.TIME_VARIABLE_NAME).float());
+};
+
+
+// Add harmonic terms as new image bands.
+// TODO: use user-defined independent bands
+var addHarmonics = function(collection) {
+  return collection.map(function(image) {
+    var timeRadians = image.select(GLOBALS.TIME_VARIABLE_NAME).multiply(2 * Math.PI);
+    return image
+      .addBands(ee.Image.constant(1))
+      .addBands(timeRadians.cos().rename('cos'))
+      .addBands(timeRadians.sin().rename('sin'))
+      .addBands(timeRadians.multiply(2).cos().rename('cos2'))
+      .addBands(timeRadians.multiply(2).sin().rename('sin2'))
+      .addBands(timeRadians.multiply(3).cos().rename('cos3'))
+      .addBands(timeRadians.multiply(3).sin().rename('sin3'));
+  });
+};
+
+
+// Remove clouds, add variables
+var prepareCollection = function(collection, collection_id){
+  var cf = getProcessor(collection_id).cloudFilter;
+  collection = collection.map(cf).map(addTimeVariable);
+  return addHarmonics(collection);
+};
+
+
+var fit = function(collection, dependent){
+  var harmonicIndependents = GLOBALS.PREDICTORS;
+  
+  var harmonicTrend = collection
+    .select(harmonicIndependents.add(dependent))
+    .reduce(ee.Reducer.linearRegression(harmonicIndependents.length(), 1));
+  
+  // Turn the array image into a multi-band image of coefficients.
+  var coefficients = harmonicTrend.select('coefficients')
+    .arrayProject([0])
+    .arrayFlatten([harmonicIndependents]);
+    
+  return coefficients;
+};
+    
+var predict = function(collection, coefs){
+  // Compute fitted values.
+  var fittedHarmonic = collection.map(
+    function(image) {
+      var harmonicIndependents = GLOBALS.PREDICTORS;
+      return image.addBands(
+        image.select(harmonicIndependents)
+        .multiply(coefs)
+        .reduce('sum')
+        .rename('fitted')
+      );
+  });
+
+  return fittedHarmonic;
+};
+
+// Функция синтезирует изображения в заданном канале за выбранные дни.
+// Возвращает коллекцию за указанный диапазон дней: один день - одно изображение
+// В assetID лежит название asset, хранящего изображение коэффициентами регрессии,
+// используемых функцией predict
+var synthesation = function(assetID, days){
+  var fitted_coefs = ee.Image.load(assetID);
+  
+  days = days.map(function(day_number){
+    return ee.Image(ee.Number(day_number)
+      .divide(365.25))
+      .rename(GLOBALS.TIME_VARIABLE_NAME).float();
+  });
+  var year = ee.ImageCollection(days);
+  var yearHarmonics = addHarmonics(year);
+
+  var predicted = predict(yearHarmonics, fitted_coefs);
+  return predicted.select('fitted');
+};
+
+/* 
+var upperFit = function(collection){
+  var names = ee.Image(collection.first()).bandNames();
+  var dependent = ee.String(GLOBALS.INDEPEND_VARIABLE_NAME);
+  
+  var fitted1 = fitHarmonics(collection);
+  fitted1 = fitted1.fitted;
+  
+  fitted1 = fitted1.map(
+    function(image) {
+      image.select(names)
+    );
+};
+
+*/
+
+exports.timeSeries = {
+  prepareCollection: prepareCollection,
+  fit: fit,
+  predict: predict,
+  synthesation: synthesation,
+  addHarmonics: addHarmonics,
+  GLOBALS: GLOBALS
+};
+
+

@@ -1,0 +1,78 @@
+
+function array2Image(array){ return ee.Image(array);}
+
+function sigmoid(array){
+  return array.multiply(-1).exp().add(1).pow(-1);  
+}
+
+function relu(arr){
+  // I don't want use IF statement for arrays
+  return arr.add(arr.abs()).divide(2);
+}
+
+
+var basicMLP = {
+  init: function (weightsList, biasesList){ 
+    this.biases = biasesList.map(array2Image);
+    this.weights = weightsList.map(array2Image);
+  },
+  
+  output: function(inputArray){
+    var l1 = inputArray.matrixMultiply(ee.Image(ee.Array(this.weights.get(0))));
+    l1 = relu(l1.add(ee.Array(this.biases.get(0))));
+    
+    var l2 = l1.matrixMultiply(ee.Image(ee.Array(this.weights.get(1))));
+    l2 = relu(l2.add(ee.Array(this.biases.get(1))));
+    
+    var l3 = l2.matrixMultiply(ee.Image(ee.Array(this.weights.get(2))));
+    l3 = l3.add(ee.Array(this.biases.get(2)));
+    
+    return l3;
+  }
+};
+
+var reluMLP = {
+  init: function (weightsList, biasesList){ 
+    this.nnet = Object.create(basicMLP);
+    this.nnet.init(weightsList, biasesList);
+  },
+  
+  output: function(inputArray){
+    var out = this.nnet.output(inputArray);
+    out = relu(out);
+    return out.arrayProject([0]).arrayFlatten([['1']]);
+  }
+};
+
+var poissonMLP = {
+  init: function (weightsList, biasesList){ 
+    this.nnet = Object.create(basicMLP);
+    this.nnet.init(weightsList, biasesList);
+  },
+  
+  output: function(inputArray){    
+    var out = this.nnet.output(inputArray);
+    out = out.exp();
+    return out.arrayProject([0]).arrayFlatten([['1']]);
+  }
+};
+
+var sigmoidMLP = {
+  init: function (weightsList, biasesList){ 
+    this.nnet = Object.create(basicMLP);
+    this.nnet.init(weightsList, biasesList);
+  },
+  
+  output: function(inputArray){    
+    var out = this.nnet.output(inputArray);
+    out = sigmoid(out);
+    return out.arrayProject([0]).arrayFlatten([['1']]);
+  }
+};
+
+
+exports.MLP={
+  reluMLP: reluMLP,
+  poissonMLP: poissonMLP,
+  sigmoidMLP: sigmoidMLP
+};

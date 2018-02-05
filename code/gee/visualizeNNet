@@ -1,0 +1,133 @@
+Map.setOptions("HYBRID");
+var TS = require("users/iglushko/ALERT2018:TimeSeries_test");
+var cloudMASK = require("users/iglushko/ALERT2018:L8CloudFilter");
+var aggregator = require("users/iglushko/ALERT2018:Aggregator");
+var neural = require("users/kolesovdm/Neural:trainedNet");
+
+var forestCover = ee.ImageCollection("GLCF/GLS_TCC").reduce(ee.Reducer.lastNonNull()); 
+forestCover = forestCover.select(['tree_canopy_cover_last']).rename('tree_canopy_cover');
+
+var fe_mask = ee.FeatureCollection('users/iglushko/FE/aoife');
+
+var changes = ee.FeatureCollection('users/iglushko/FE2018/LE2017ch');
+var nochange=ee.FeatureCollection('users/iglushko/FE2018/LE2017nochange');
+var clouds=ee.FeatureCollection('users/iglushko/FE2018/LE2017cloud');
+var nocloud=ee.FeatureCollection('users/iglushko/FE2018/LE2017nocloud');
+
+var train_changes= changes.map(function(f){
+  var name = ee.String(f.get('NAME'));
+  var slice_num = ee.Number.parse(name.slice(4));
+  return ee.Feature(f.geometry(), {'slice': slice_num});
+}).merge(nochange.map(function(f){
+  return ee.Feature(f.geometry(), {'slice': -1});
+}));
+
+var lsat17 = aggregator.Aggregator.createMedians(['LANDSAT/LC08/C01/T1_RT_TOA'], fe_mask, 2017,0, 160, 16);
+var lsat16 = aggregator.Aggregator.createMedians(['LANDSAT/LC08/C01/T1_RT_TOA'], fe_mask, 2016,300, 365, 16);
+var lsat = ee.ImageCollection(lsat16.merge(lsat17));
+//Map.addLayer( lsat,{bands:['swir1','nir','red']},'Expected, Slice_RGB' + SLICE_NUM,false);
+var lsatMasked = lsat
+  .map(function(img){
+    // Ожидаемый порядок слоев в изображениях: "blue", "green", "red", "nir", "swir1", "swir2"
+    var img_selected = img.select(["blue", "green", "red", "nir", "swir1", "swir2"]);
+    var isCloud = cloudMASK.cloudL8Net.cloudMask(img_selected, 0.1);
+    return img.updateMask(isCloud.not());
+  });
+
+
+var sliceList = [];
+for (var sliceNum=0; sliceNum<14; sliceNum++){
+  sliceList.push(ee.Image('users/kolesovdm/L8Synthesis/before2017/slice_int_'+sliceNum));
+}
+var slices = ee.ImageCollection(sliceList);
+
+var SLICE_NUM = 2;
+
+var med = ee.Image(lsatMasked.toList(1, SLICE_NUM).get(0));
+var slice = ee.Image(slices.toList(1, SLICE_NUM).get(0)).expression('b("blue", "green", "red", "nir", "swir1", "swir2")/10000.0');
+forestCover = forestCover.divide(100.0);
+var data = ee.Image.cat([forestCover, med, slice]);
+var mask = data.reduce(ee.Reducer.allNonZero());
+data = data.updateMask(mask);
+var arr = data.toArray().toArray(1).arrayTranspose();
+var result = ee.Image(neural.MLP.changeDetectorTreeCover.output(arr));  
+
+
+//Display and export stretching
+function stretcher5_4_3(im) {
+  var stats = im.select(['swir1', 'nir', 'red']).reduceRegion({
+    reducer: ee.Reducer.percentile([7, 93]),
+    geometry:fe_mask,
+    scale: 100,
+    maxPixels: 1e15
+  });
+  var imRGB = im
+    .select(['swir1', 'nir', 'red'])
+    .visualize({
+       min: ee.List([stats.get('swir1_p7'), stats.get('nir_p7'), stats.get('red_p7')]), 
+       max: ee.List([stats.get('swir1_p93'), stats.get('nir_p93'), stats.get('red_p93')]), 
+    });
+  return im.set('imRGB', imRGB);
+}
+
+var stretchedMedian_slice = stretcher5_4_3(slice);
+var stretchedMedian_slice_rgb = ee.Image(stretchedMedian_slice.get('imRGB'));
+//Map.addLayer( stretchedMedian_slice_rgb,{},'Expected, Slice_RGB' + SLICE_NUM,false);
+var stretchedMedian_med = stretcher5_4_3(med);
+var stretchedMedian_med_rgb = ee.Image(stretchedMedian_med.get('imRGB'));
+//Map.addLayer(stretchedMedian_med_rgb,{},'Medians, Slice_RGB' + SLICE_NUM,false);
+
+
+
+Map.addLayer(result, {palette: ['blue', 'red']}, 'Changed Result slice' + SLICE_NUM, true);
+Map.addLayer(changes, {}, 'Training data', false);
+Map.addLayer(train_changes.filter(ee.Filter.and(ee.Filter.lte('slice', SLICE_NUM), ee.Filter.gte('slice', 0))), {palette: ['yellow']}, 'Changes '+SLICE_NUM, false);
+Map.addLayer(mask.updateMask(mask.eq(1)), {palette:['blue']}, 'mask data', false);
+
+
+///////////////////////////////////////////////////////////add last UMD ALERT data////////////////////////////////////////////////
+var date = '10_31'; //MM_DD
+var fe_mask=ee.FeatureCollection('users/iglushko/FE/aoife');
+//Map.centerObject(fe_mask);
+var prev_loss = ee.Image('UMD/hansen/global_forest_change_2016_v1_4').select('lossyear');
+Map.addLayer(prev_loss, {min:0, max:16, palette:['000000','FFFF00','FF7700']},'GlobalForestChange',false);
+var fmask = ee.Image('projects/glad/FE_Forest_mask');//the results were created using this as a mask
+var errmask28aug=ee.FeatureCollection('users/iglushko/FE/AUG28_ERRMASK');
+var alert16=ee.Image('users/iglushko/FE/FE_conf2016m').unmask();
+var alert15=ee.Image('users/iglushko/FE/alarm_2015recalc3_2_16_day_p').unmask();
+var latestsource = ee.Image('projects/glad/alert/UpdResult/'+date+'_FE');
+var mask_date_130 = latestsource.select('alertDate17').gt(130);
+var last2016=ee.FeatureCollection('users/iglushko/FE/last2016');
+Map.addLayer(ee.Image.cat(ee.Image('projects/glad/previous/FE/last2016')),{min:1, max:228},'2016 last obs',false);
+Map.addLayer(latestsource,{bands:['swir1','nir','red'],min:1, max:228}, '2017 last obs',false);
+var date_latest=latestsource.select('alertDate17').updateMask(alert15.eq(0));
+var conf_latest_source=latestsource.select('conf17').updateMask(alert15.eq(0));
+var date_latest=date_latest.updateMask(alert16.eq(0));
+var date_latest=date_latest.updateMask(mask_date_130);
+var conf_latest=latestsource.select('conf17').updateMask(alert15.eq(0));
+var conf_latest=conf_latest.updateMask(alert16.eq(0));
+var conf_latest=conf_latest.updateMask(mask_date_130);
+var mask15 = alert15.neq(0);
+var mask16 = alert16.neq(0);
+var alert16 = alert16.updateMask(mask16);
+var alert15 = alert15.updateMask(mask15);
+var conf_latest=conf_latest.clipToCollection(errmask28aug);
+var date_latest=date_latest.clipToCollection(errmask28aug);
+var alert15 = alert15.clipToCollection(errmask28aug);
+var alert16 = alert16.clipToCollection(errmask28aug);
+//kernel median 5
+var kernel = ee.Kernel.rectangle({xRadius: 2, yRadius:1.5});
+var conf_latest=conf_latest.unmask();
+var conf_latest_m5=conf_latest.focal_median({kernel: kernel, iterations: 1});
+var mask_latest = conf_latest_m5.neq(0).resample('bicubic');
+var conf_latest=conf_latest.updateMask(mask_latest);
+var mask_latest = conf_latest.neq(0);
+var conf_latest=conf_latest.updateMask(mask_latest);
+var date_latest=date_latest.updateMask(mask_latest);
+Map.addLayer(alert15,{min:0, max:3, palette:['000000','444444','green','green']},'conf 2015', false);
+Map.addLayer(alert16,{min:0, max:3, palette:['000000','444444','orange','orange']},'conf 2016', false);
+//Map.addLayer(errmask28aug,{color:'green'},'QAmask',false);
+Map.addLayer(date_latest,{min:0, max:3, palette:['000000','444444','0000FF','FF0000']},'date_latest2017',false);
+Map.addLayer(conf_latest,{min:0, max:3, palette:['000000','444444','yellow','yellow']},'conf_latest2017', false);
+//Map.addLayer(alert15.neq(0).addBands(alert16.neq(0)).addBands(conf_latest.select('conf17').neq(0)),{min:0,max:3},'RGB: 15-16-17 alerts',false);
+

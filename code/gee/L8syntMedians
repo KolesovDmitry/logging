@@ -1,0 +1,221 @@
+/*
+Функции синтеза снимков на определенные даты. 
+Работают на основе анализа исторических данных: 
+  * строятся коэффициенты регрессии (см. файл createCoefs) TOAR в зависимости от номера дня
+  * затем по номеру дня генерируются ожидаемые TOAR на этот день
+  * строятся медианы синтезированных снимков за указанный диапазон 
+    (этот шаг нужен для сравнения результатов с ранее обработанными медианной аггрегацией снимками)
+  
+*/
+
+
+
+// Map.setOptions("HYBRID");
+var imageVisParam = {"opacity":1,"bands":["swir2","nir","green"],"gamma":1, "min": 0, "max": 10000};
+
+
+var TS = require("users/kolesovdm/TimeSeries:TimeSeries");
+var quality = require("users/kolesovdm/Logging:qualityMetrics");
+var aggregator = require("users/iglushko/ALERT2018:Aggregator");
+
+var fe_mask=ee.FeatureCollection('users/iglushko/FE/aoife');
+
+
+var assetList = [
+  {'id': 'users/kolesovdm/L8Synthesis/before2017/coef_L8_int_B7', 'name': 'swir2'},
+  {'id': 'users/kolesovdm/L8Synthesis/before2017/coef_L8_int_B6', 'name': 'swir1'},
+  {'id': 'users/kolesovdm/L8Synthesis/before2017/coef_L8_int_B5', 'name': 'nir'},
+  {'id': 'users/kolesovdm/L8Synthesis/before2017/coef_L8_int_B4', 'name': 'red'},
+  {'id': 'users/kolesovdm/L8Synthesis/before2017/coef_L8_int_B3', 'name': 'green'},
+  {'id': 'users/kolesovdm/L8Synthesis/before2017/coef_L8_int_B2', 'name': 'blue'}
+];
+
+var second_part = aggregator.Aggregator.createSyntMedians(assetList, 0, 160, 16); // с 0-го по 160-й день, шагом 16 дней
+var first_part = aggregator.Aggregator.createSyntMedians(assetList, 300, 364, 16);
+var all = ee.ImageCollection(first_part.merge(second_part));
+
+all = all.map(
+  function(img){
+    return img.int16();
+  }
+);
+
+// print(all);
+
+// Для сравнения построим реальные медианы
+var lsat17 = aggregator.Aggregator.createMedians(['LANDSAT/LC08/C01/T1_RT_TOA'], fe_mask, 2017, 1, 160, 16);
+var lsat16 = aggregator.Aggregator.createMedians(['LANDSAT/LC08/C01/T1_RT_TOA'], fe_mask, 2016, 301, 365, 16);
+var lsat = ee.ImageCollection(lsat16.merge(lsat17));
+// print(lsat);
+ 
+
+var size = all.size().getInfo();
+var SCALE = 60;
+for (var i=0; i < size; i++){
+  var slice_name = 'slice_int_' + i;
+  print(slice_name);
+  var img = ee.Image(all.toList(1, i).get(0));
+  
+  // Численная оценка качества подгонки
+  var realData = ee.Image(lsat.toList(1, i).get(0));
+  var MSE = quality.Quality.MSE(realData, img, 60, fe_mask);
+  print('Slice: ' + i, MSE);
+
+  /*   
+  Map.addLayer(img, imageVisParam, slice_name, false);
+
+  Export.image.toAsset({
+    image: img,
+    description: slice_name,
+    assetId: 'L8Synthesis/before2017/' + slice_name,
+    scale: SCALE,
+    region: fe_mask,
+    maxPixels: 2000000000
+  });
+  */
+}
+
+
+// Map.addLayer(predicted, imageVisParam, 'predicted', false);
+// Map.addLayer(realData, imageVisParam, 'real', false);
+
+
+
+exports.syntMedians={
+  slices: all
+};
+
+
+/* 
+Output log:
+slice_int_0
+Slice: 0
+  Object (6 properties)
+  blue: 4236212.234440153
+  green: 2888005.806824428
+  nir: 5641399.63876938
+  red: 3118397.9199251607
+  swir1: 1443391.0772839026
+  swir2: 663737.7790531988
+slice_int_1
+Slice: 1
+  Object (6 properties)
+  blue: 7093892.579259573
+  green: 4887156.261159589
+  nir: 8250352.01778522
+  red: 5546754.256842274
+  swir1: 1152294.7943000088
+  swir2: 649447.4622253255
+slice_int_2
+Slice: 2
+  Object (6 properties)
+  blue: 10333363.179028623
+  green: 7154217.798285795
+  nir: 11672907.475850439
+  red: 8351325.089980109
+  swir1: 899076.3342910848
+  swir2: 615419.0359519051
+slice_int_3
+Slice: 3
+  Object (6 properties)
+  blue: 12932270.27054421
+  green: 9046713.755081628
+  nir: 14868032.331931235
+  red: 10715904.955707261
+  swir1: 725365.6141809367
+  swir2: 568743.2425451705
+slice_int_4
+Slice: 4
+  Object (6 properties)
+  blue: 12530976.811747257
+  green: 8897915.569359422
+  nir: 15198678.04718217
+  red: 10491881.540827487
+  swir1: 671193.7630512528
+  swir2: 527889.4815998467
+slice_int_5
+Slice: 5
+  Object (6 properties)
+  blue: 16158284.853630627
+  green: 12170476.069062473
+  nir: 19696851.12575806
+  red: 14399641.174315171
+  swir1: 615583.2974559194
+  swir2: 490558.91753408656
+slice_int_6
+Slice: 6
+  Object (6 properties)
+  blue: 15635239.785438985
+  green: 12192622.609802878
+  nir: 19242178.497033898
+  red: 14310679.933511902
+  swir1: 690436.7404696444
+  swir2: 515126.6372054074
+slice_int_7
+Slice: 7
+  Object (6 properties)
+  blue: 15570314.635493834
+  green: 12578963.158234391
+  nir: 18638293.9202486
+  red: 14643324.642955545
+  swir1: 758607.7328953071
+  swir2: 526537.6494834439
+slice_int_8
+Slice: 8
+  Object (6 properties)
+  blue: 13334421.259316184
+  green: 11026716.500270635
+  nir: 15447317.795733549
+  red: 12703281.886090212
+  swir1: 946996.8968855499
+  swir2: 588927.1891861665
+slice_int_9
+Slice: 9
+  Object (6 properties)
+  blue: 9267481.702950776
+  green: 7715868.103884148
+  nir: 10770927.637772059
+  red: 8784032.025036141
+  swir1: 1309098.7051240313
+  swir2: 718525.6540540553
+slice_int_10
+Slice: 10
+  Object (6 properties)
+  blue: 6797131.366023898
+  green: 5657084.440538014
+  nir: 8265655.1812762385
+  red: 6262606.683587157
+  swir1: 1698845.445657562
+  swir2: 829919.1338460298
+slice_int_11
+Slice: 11
+  Object (6 properties)
+  blue: 3606286.1966159097
+  green: 2923562.5319329705
+  nir: 5852123.521673803
+  red: 3037848.5698945886
+  swir1: 2108560.246267688
+  swir2: 881967.8219316987
+slice_int_12
+Slice: 12
+  Object (6 properties)
+  blue: 1697524.7757711092
+  green: 1301206.2046045973
+  nir: 5312656.743345748
+  red: 1145842.81405385
+  swir1: 2422321.8440453755
+  swir2: 863880.8773503153
+slice_int_13
+Slice: 13
+  Object (6 properties)
+  blue: 1032576.699133621
+  green: 749936.2511740153
+  nir: 6441658.022264117
+  red: 484597.3984108148
+  swir1: 2449922.2647878462
+  swir2: 738754.3654375912
+
+
+
+*/
+

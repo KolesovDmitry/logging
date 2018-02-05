@@ -1,0 +1,168 @@
+/*
+Функции для аггрегации данных Ландсат и Сентинель во времени:
+  * фильтрация облачности
+  * создание медианных снимков за выбранный период с указанной периодичностью
+*/
+
+var TS = require("users/kolesovdm/TimeSeries:TimeSeries");
+
+
+////////////////////////////////////////////////////////////////////////
+// Вспомогательные функции по выбору каналов, фильтрации облаков и т.п
+////////////////////////////////////////////////////////////////////////
+
+// Sentinel-2
+function filterCloudS2(img){
+  var cloudMask = img.select('QA60').eq(0);
+  return img.mask(img.mask().and(cloudMask));
+}
+// Landsat-8
+var filterCloudL8 = function(img) {
+  var quality = img.select('BQA');
+  var mask=quality.lt(28000);
+  return img.updateMask(mask);
+}
+//landsat 8 -var.1
+// Возможно ошибка: нужно проверять не равенство отдельным числам,
+// а наличие отдельных бит
+var filterCloudL8_1 = function(image) {
+  var quality = image.select('BQA');
+  var cloud01 = quality.eq(61440);
+  var cloud02 = quality.eq(56320);
+  var cloud03 = quality.eq(53248);
+  var cloud04 = quality.eq(45056);
+  var cloud05 = quality.eq(28672);
+  var cloud06 = quality.eq(36896);
+  var mask =(cloud01.or(cloud02).or(cloud03).or(cloud04).or(cloud05).or(cloud06)).neq(1);
+  return image.updateMask(mask);
+};
+// Landsat-7
+function filterCloudL7(img){
+  var cloud =  ee.Algorithms.Landsat.simpleCloudScore(img); 
+  var score =  cloud.select(['cloud']).lte(80);
+  return img.updateMask(score);
+}
+// Landsat-8
+function selectBandsL8(img){
+  // Здесь возвращаются "сырые" каналы, без преобразований, поскольку
+  // для разных целей нужны разные преобразования, а функции
+  // аггрегации используются много где. Поэтому при необходимости
+  // работать (к примеру) с целыми числами - нужно сначала сделать
+  // аггрегацию, а лишь затем преобразовывать данные к нужному формату
+  return img.expression('b("B7","B6","B5","B4","B3","B2")').rename('swir2','swir1','nir','red','green','blue');
+}
+// Landsat-7
+function selectBandsL7(img){
+  // Здесь возвращаются "сырые" каналы, без преобразований, поскольку
+  // для разных целей нужны разные преобразования, а функции
+  // аггрегации используются много где. Поэтому при необходимости
+  // работать (к примеру) с целыми числами - нужно сначала сделать
+  // аггрегацию, а лишь затем преобразовывать данные к нужному формату
+  return img.expression('b("B7","B5","B4","B3","B2","B1")').rename('swir2','swir1','nir','red','green','blue');
+}
+// Sentinel-2
+function selectBandsS2(img){
+  //select only 3 bands
+  return img.expression('b("B12","B8","B4","B3","B2")');
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Для удобства соберем фукнкции обработки в зависимости от типа сенсора
+////////////////////////////////////////////////////////////////////////////
+var SentinelProcessor = {
+  'collection_id': 'COPERNICUS/S2',
+  'cloudFilter': filterCloudS2,
+  'bandSelector': selectBandsS2
+};
+
+var L8Processor = {
+  'collection_id': 'LANDSAT/LC08/C01/T1_RT_TOA',
+  'cloudFilter': filterCloudL8,
+  'bandSelector': selectBandsL8
+};
+
+var L7Processor = {
+  'collection_id': 'LANDSAT/LE07/C01/T1_RT_TOA',
+  'cloudFilter': filterCloudL7,
+  'bandSelector': selectBandsL7
+};
+
+// По ID коллекции вернем функции для обработки этой коллекции
+function getProcessor(collection_id){
+  if (collection_id == SentinelProcessor.collection_id) return SentinelProcessor;
+  if (collection_id == L8Processor.collection_id) return L8Processor;
+  if (collection_id == L7Processor.collection_id) return L7Processor;
+}
+
+
+//////////////////////////////////////////////////////////////////////
+// Основные фукнции создания композитов
+//////////////////////////////////////////////////////////////////////
+
+function createMedians(collection_list, geom, year,beginDay, endDay, period){
+  var imgList = [];
+  
+  var merged = ee.ImageCollection([]);
+  
+  var begin = beginDay;
+   
+  while (begin < endDay){
+    for (var iter_num=0; iter_num < collection_list.length; iter_num++){
+      var collection_id = collection_list[iter_num];
+      var processor = getProcessor(collection_id);
+      
+      var collection = ee.ImageCollection(collection_id);
+      var filterParams = collection.filterBounds(geom)
+        .filter(ee.Filter.calendarRange(year, year, 'year'))
+        .filter(ee.Filter.dayOfYear(begin, begin + period))
+        .map(processor.cloudFilter)
+        .map(processor.bandSelector);
+      
+      if (iter_num === 0){
+        merged = ee.ImageCollection(filterParams);
+      } else {
+        merged = ee.ImageCollection(merged.merge(filterParams));
+      }
+    }
+    var median = merged.median();
+    var comp = median.set('id', 'comp_' + year + '_' + (begin + period));
+    var clippedMedian = comp.clip(geom);
+  
+    imgList.push(clippedMedian);
+    begin += period;
+  }
+   
+  return (ee.ImageCollection(imgList));
+}
+
+
+// Создание композитов на основе синтезированных снимков
+// начиная с beginDay по endDay
+function createSyntMedians(coefAssetList, beginDay, endDay, period){
+  
+  var makeMedian = function(coefs){
+    return TS.timeSeries.synthesation(coefs.id, __DAYS__).median().rename(coefs.name);
+  };
+  var imgList = [];
+  
+  var begin = beginDay;
+   
+  while (begin < endDay){
+    var __DAYS__ = ee.List.sequence(begin, begin + period);
+    
+    var medianList = coefAssetList.map(makeMedian);
+    var medians = ee.Image(medianList);
+      
+    imgList.push(medians);
+    begin += period;
+  }
+   
+  return (ee.ImageCollection(imgList));
+}
+
+
+exports.Aggregator={
+  createMedians: createMedians,
+  createSyntMedians: createSyntMedians
+};
+

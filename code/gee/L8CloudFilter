@@ -1,0 +1,69 @@
+/*
+Функции создания маски облачности для Ландсат-8.
+*/
+
+
+var neural = require("users/kolesovdm/Neural:trainedNet");
+// var aggregator = require("users/iglushko/ALERT2018:Aggregator");
+
+
+/*
+Функция создания маски облачности для Ландсат-8.
+
+На вход принимает медианы снимков за 16 дней (не требует ожидаемых значений)
+Затем рассчитывает вероятность того, что данный пиксель - облачный
+Если вероятность превышает указанный порог, то пиксель будет включен в маску.
+
+*/
+// Порядок слоев при обучении сети: "blue", "green", "red", "nir", "swir1", "swir2", "ndsi"
+var getCloudMask = function(realMedian, threshold){
+  
+  var img_selected = realMedian.select(["blue", "green", "red", "nir", "swir1", "swir2"]);
+  img_selected = img_selected.addBands(img_selected.normalizedDifference(['green', 'swir1']).rename('ndsi'));
+  var arr = img_selected.toArray().toArray(1).arrayTranspose();
+  var mask = ee.Image(neural.MLP.cloudDetector.output(arr));  
+
+  var isCloud = mask.gte(ee.Image(threshold));
+  
+  return isCloud;
+};
+
+
+
+
+exports.cloudL8Net={
+  cloudMask: getCloudMask
+};
+
+/*
+
+var fe_mask = ee.FeatureCollection('users/iglushko/FE/aoife');
+
+var lsat17 = aggregator.Aggregator.createMedians(['LANDSAT/LC08/C01/T1_RT_TOA'], fe_mask, 2017,0, 160, 16);
+var lsat16 = aggregator.Aggregator.createMedians(['LANDSAT/LC08/C01/T1_RT_TOA'], fe_mask, 2016,300, 365, 16);
+var lsat = ee.ImageCollection(lsat16.merge(lsat17));
+
+var sliceList = [];
+for (var sliceNum=0; sliceNum<14; sliceNum++){
+  sliceList.push(ee.Image('users/kolesovdm/L8Synthesis/slice_'+sliceNum));
+}
+var slices = ee.ImageCollection(sliceList);
+
+var SLICE_NUM = 1;
+var med = ee.Image(lsat.toList(1, SLICE_NUM).get(0));
+var slice = ee.Image(slices.toList(1, SLICE_NUM).get(0)).divide(10000.0);
+
+var data = ee.Image.cat([med, slice])
+  .select(["blue", "blue_1", "green", "green_1", "red", "red_1", "nir", "nir_1", "swir1", "swir1_1", "swir2", "swir2_1"]);
+
+var isCloudComp = getCloudMaskCompare(med, slice, 0.1);
+var isCloud = getCloudMask(med, 0.1);
+
+
+// med = med.updateMask(isCloud);
+Map.addLayer(isCloudComp, {palette: ['red', 'blue']}, 'cloud comp', false)
+Map.addLayer(isCloud, {palette: ['red', 'blue']}, 'cloud', true)
+Map.addLayer(med, {}, 'med', false)
+*/
+
+
