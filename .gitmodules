@@ -1,0 +1,3 @@
+[submodule "code/ALARM"]
+	path = code/ALARM
+	url = https://earthengine.googlesource.com/users/kolesovdm/ALARM
