@@ -21,40 +21,39 @@ FLAGS = None
 
 # Все завязано на конкретный формат файла. При необходимости - менять функцию
 def read_file(filename, no_change=28):
-    #     system:index,
-    #     blue,blue_1,blue_2,
-    #     current_slice,found_slice,
-    #     green,green_1,green_2,
-    #     id,
-    #     nir,nir_1,nir_2,red,red_1,red_2,swir1,swir1_1,swir1_2,swir2,swir2_1,swir2_2,
-    #     .geo
-    names = ("id",
-              "found_slice", "current_slice",
-              "blue", "blue_1", "blue_2",
-              "green", "green_1", "green_2", 
-              "red", "red_1", "red_2",
-              "nir", "nir_1", "nir_2",
-              "swir1", "swir1_1", "swir1_2",
-              "swir2", "swir2_1", "swir2_2")
+    # system:index,blue,blue_1,current_slice,green,green_1,id,nir,nir_1,red,red_1,slice,swir1,swir1_1,swir2,swir2_1,tree_canopy_cover,uncertainty,.geo
 
     data = pd.read_csv(
         filename, 
         delimiter=',',
-        usecols=[9, 5, 4, 1, 2, 3, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
     )
 
     # Delete old changes from sample:
-    data = data.loc[~((data['current_slice'] > data['found_slice']) & ( data['found_slice'] >= 0))]
+    data = data.loc[
+        ~(
+            (data['current_slice'] > data['slice']) & 
+            (data['slice'] >= 0)
+        )
+    ]
     
-    data['blue_2'] = data['blue_2'] / 10000.0
-    data['green_2'] = data['green_2'] / 10000.0
-    data['red_2'] = data['red_2'] / 10000.0
-    data['nir_2'] = data['nir_2'] / 10000.0
-    data['swir1_2'] = data['swir1_2'] / 10000.0
-    data['swir2_2'] = data['swir2_2'] / 10000.0
-    data['change'] = (data['current_slice'] == data['found_slice']).astype(int)
+    data['blue_1'] = data['blue_1'] / 10000.0
+    data['green_1'] = data['green_1'] / 10000.0
+    data['red_1'] = data['red_1'] / 10000.0
+    data['nir_1'] = data['nir_1'] / 10000.0
+    data['swir1_1'] = data['swir1_1'] / 10000.0
+    data['swir2_1'] = data['swir2_1'] / 10000.0
+    data['change'] = (data['current_slice'] == data['slice']).astype(int)
     
     
+    names = [
+        "id", "tree_canopy_cover", "current_slice", "slice",
+        "blue","blue_1",
+        "green","green_1",
+        "red","red_1",
+        "nir","nir_1",
+        "swir1","swir1_1",
+        "swir2","swir2_1",
+    ]
     return data[list(names)+['change']]
 
 
@@ -84,21 +83,14 @@ def split_data(data, train_val_test=(0.66, 0.17, 0.17), seed=0):
     val = data[data['id'].isin(val)]
     test = data[data['id'].isin(test)]
     
-    names = [ # "current_slice",
-              "blue", "blue_1", "blue_2",
-              "green", "green_1", "green_2", 
-              "red", "red_1", "red_2",
-              "nir", "nir_1", "nir_2",
-              "swir1", "swir1_1", "swir1_2",
-              "swir2", "swir2_1", "swir2_2", "change"]
 
     names = [ # "current_slice",
-              "blue_1", "blue_2",
-              "green_1", "green_2",
-              "red_1", "red_2",
-              "nir_1", "nir_2",
-              "swir1_1", "swir1_2",
-              "swir2_1", "swir2_2", "change"]
+              "blue", "blue_1",
+              "green", "green_1",
+              "red", "red_1",
+              "nir", "nir_1",
+              "swir1", "swir1_1",
+              "swir2", "swir2_1", "change"]
 
     train = np.array(train[names])
     val = np.array(val[names])
@@ -201,7 +193,7 @@ def print_model(FLAGS, model_name, x_test, y_test):
 
         bestW1, bestW2, bestW3, bestB1, bestB2, bestB3 = sess.run([_W1, _W2, _W3, _b1, _b2, _b3])
 
-
+    os.makedirs(FLAGS.model_dir, exist_ok=True)
     np.savetxt(os.path.join(FLAGS.model_dir, FLAGS.result+'w1.txt'), bestW1, delimiter=', ', newline='],\n[', header='[\n', footer='', comments='')
     np.savetxt(os.path.join(FLAGS.model_dir, FLAGS.result+'b1.txt'), bestB1, delimiter=', ', newline=',\n', header='[\n', footer=']', comments='')
 
@@ -290,7 +282,7 @@ def main(_):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default='/home/klsvd/laboro/NextGIS/AML/DDD-alarm/EE-timeseries/change_sample_prev*_seed0.csv',
+    parser.add_argument('--data', type=str, default='../../data/changes/expectedVSmedian/change_sample_*_seed*.csv',
                         help='Pattern for describe input data files')
     parser.add_argument('--model_dir', type=str, default='models',
                         help='Directory for store trained models files')
@@ -303,13 +295,10 @@ if __name__ == '__main__':
                         help='Neuron count of the first layer')
     parser.add_argument('--layer2', type=int, default='15',
                         help='Neuron count of the first layer')
-    # parser.add_argument('--layer3', type=int, default='15',
-                        # help='Neuron count of the first layer')
     parser.add_argument('--max_epoch', type=int, default='1000',
                         help='Neuron count of the first layer')
 
 
-    # tmp = get_data('/home/klsvd/laboro/NextGIS/AML/DDD-alarm/EE-timeseries/change_sample_prev*_seed0.csv')
 
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
