@@ -8,7 +8,6 @@ from __future__ import print_function
 import argparse
 import sys
 import os
-import glob
 
 import numpy as np
 
@@ -39,9 +38,6 @@ def call_model(FLAGS, model_name, x_test):
     with tf.Session(graph=inference_graph) as sess:
         loader = tf.train.import_meta_graph(os.path.join(FLAGS.model_dir, model_name+".meta"))
         loader.restore(sess, os.path.join(FLAGS.model_dir, model_name))
-
-        # x = tf.placeholder(tf.float32, [None, input_count])
-        # y_ = tf.placeholder(tf.int32, [None, out_count])
 
         _x = inference_graph.get_tensor_by_name('input:0')
         y = inference_graph.get_tensor_by_name('result:0')

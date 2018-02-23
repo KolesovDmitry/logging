@@ -20,7 +20,7 @@ tf.set_random_seed(1)
 FLAGS = None
 
 # Все завязано на конкретный формат файла. При необходимости - менять функцию
-def read_file(filename, no_change=28):
+def read_file(filename):
     # system:index,blue,blue_1,current_slice,green,green_1,id,nir,nir_1,red,red_1,slice,swir1,swir1_1,swir2,swir2_1,tree_canopy_cover,uncertainty,.geo
 
     data = pd.read_csv(
@@ -47,12 +47,12 @@ def read_file(filename, no_change=28):
     
     names = [
         "id", "tree_canopy_cover", "current_slice", "slice",
-        "blue","blue_1",
-        "green","green_1",
-        "red","red_1",
-        "nir","nir_1",
-        "swir1","swir1_1",
-        "swir2","swir2_1",
+        "blue", "blue_1",
+        "green", "green_1",
+        "red", "red_1",
+        "nir", "nir_1",
+        "swir1", "swir1_1",
+        "swir2", "swir2_1",
     ]
     return data[list(names)+['change']]
 
@@ -226,7 +226,7 @@ def main(_):
         b3 = tf.Variable(tf.zeros([out_count]), name='b3')
 
     logits = model(x, W1, W2, W3, b1, b2, b3)
-    y = tf.sigmoid(logits)
+    y = tf.sigmoid(logits, name='result')
 
 
     # Define loss and optimizer
@@ -246,7 +246,7 @@ def main(_):
 
     tf.summary.scalar('cross entropy', loss)
 
-    optimizer = training(loss, learning_rate=0.01, momentum=0.01)
+    optimizer = training(loss, learning_rate=0.05, momentum=0.01)
 
     saver = tf.train.Saver(max_to_keep=1)
 
