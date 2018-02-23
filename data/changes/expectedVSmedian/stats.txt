@@ -1,0 +1,38 @@
+Стандартные отклонения:
+      blue      green        red        nir      swir1      swir2
+0.17250341 0.16714223 0.18937046 0.18422746 0.11214583 0.09872991
+    blue_1    green_1      red_1      nir_1    swir1_1    swir2_1
+0.15886756 0.15520611 0.18221939 0.17797524 0.05177372 0.03631469
+
+
+     slice                             id         current_slice   
+ Min.   :-1.000   2_00006f7018ac42529d67:  2184   Min.   : 1.000  
+ 1st Qu.:-1.000   1_0000cfb00f4c58d5b6ca:  1937   1st Qu.: 4.000  
+ Median :-1.000   1_00007ae70283aaa1ed8d:  1287   Median : 7.000  
+ Mean   : 1.942   1_0000bb7eb4e8d4b03df7:  1274   Mean   : 7.117  
+ 3rd Qu.: 5.000   1_0000389eac368492a3ff:  1092   3rd Qu.:10.000  
+ Max.   :14.000   1_00009c5b4716103a57b4:  1040   Max.   :13.000  
+                  (Other)               :110780                   
+      blue             blue_1            green            green_1       
+ Min.   :0.06823   Min.   :-1.3707   Min.   :0.04212   Min.   :-1.5393  
+ 1st Qu.:0.15022   1st Qu.: 0.1268   1st Qu.:0.11091   1st Qu.: 0.0933  
+ Median :0.27277   Median : 0.1749   Median :0.22592   Median : 0.1299  
+ Mean   :0.29824   Mean   : 0.2256   Mean   :0.25770   Mean   : 0.1875  
+ 3rd Qu.:0.40062   3rd Qu.: 0.2573   3rd Qu.:0.35468   3rd Qu.: 0.2129  
+ Max.   :1.27102   Max.   : 3.0324   Max.   :1.24954   Max.   : 2.9831  
+                                                                        
+      red              red_1              nir             nir_1        
+ Min.   :0.02712   Min.   :-1.7331   Min.   :0.0258   Min.   :-0.8017  
+ 1st Qu.:0.10415   1st Qu.: 0.0774   1st Qu.:0.2236   1st Qu.: 0.1858  
+ Median :0.23169   Median : 0.1200   Median :0.3217   Median : 0.2274  
+ Mean   :0.26768   Mean   : 0.1888   Mean   :0.3626   Mean   : 0.2864  
+ 3rd Qu.:0.37878   3rd Qu.: 0.2222   3rd Qu.:0.4668   3rd Qu.: 0.3190  
+ Max.   :1.60180   Max.   : 3.2767   Max.   :2.0471   Max.   : 3.0818  
+                                                                       
+     swir1             swir1_1             swir2             swir2_1        
+ Min.   :0.002831   Min.   :-0.51680   Min.   :0.001974   Min.   :-0.24530  
+ 1st Qu.:0.081004   1st Qu.: 0.05590   1st Qu.:0.061512   1st Qu.: 0.03620  
+ Median :0.126362   Median : 0.08070   Median :0.099030   Median : 0.05770  
+ Mean   :0.154701   Mean   : 0.09123   Mean   :0.125182   Mean   : 0.06439  
+ 3rd Qu.:0.193517   3rd Qu.: 0.11360   3rd Qu.:0.154264   3rd Qu.: 0.08550  
+ Max.   :1.097969   Max.   : 0.83810   Max.   :1.050857   Max.   : 0.62410 
