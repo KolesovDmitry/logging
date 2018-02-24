@@ -5,6 +5,7 @@ Kernel density estimation
 """
 import argparse
 
+import pickle
 
 import numpy as np
 from sklearn.neighbors import KernelDensity
@@ -13,6 +14,8 @@ from sklearn.model_selection import GridSearchCV
 from data_reader import read_file, get_data
 
 def main(flags):
+    sample_size = flags.sample_size
+    model_filename = flags.model_name
     data = get_data(flags.data)
 
     plus = data.loc[(data['change'] == 1)]
@@ -30,14 +33,14 @@ def main(flags):
     plus = np.array(plus[names])
     minus = np.array(minus[names])
 
-    if minus.shape[0] > flags.sample_size:
-        idx = np.random.randint(minus.shape[0], size=5000)
+    if minus.shape[0] > sample_size:
+        idx = np.random.randint(minus.shape[0], size=sample_size)
         minus_sample = minus[idx, :]
     else:
         minus_sample = minus
 
-    if plus.shape[0] > FLAGS.sample_size:
-        idx = np.random.randint(plus.shape[0], size=5000)
+    if plus.shape[0] > sample_size:
+        idx = np.random.randint(plus.shape[0], size=sample_size)
         plus_sample = plus[idx, :]
     else:
         plus_sample = plus
@@ -72,6 +75,10 @@ def main(flags):
     print('True plus:', true_plus_prop)
     print('True minus:', true_minus_prop)
 
+    models = {'plus_model': kde_plus, 'minus_model': kde_minus}
+
+    pickle.dump(models, open(model_filename, 'wb'))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -79,6 +86,8 @@ if __name__ == '__main__':
                         help='Pattern for describe input data files')
     parser.add_argument('--sample_size', type=int, default='5000',
                         help='Size of sample')
+    parser.add_argument('--model_name', type=str, default='models.pkl',
+                        help='Filename for store trained models')
 
 
     FLAGS, unparsed = parser.parse_known_args()
