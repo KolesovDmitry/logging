@@ -47,7 +47,7 @@ def main(flags):
 
 
     grid = GridSearchCV(KernelDensity(),
-                        {'bandwidth': np.linspace(0.001, 0.03, 30)},
+                        {'bandwidth': np.linspace(0.005, 0.025, 11)},
                         n_jobs=-1,
                         cv=10) # 10-fold cross-validation
     grid.fit(plus_sample)
