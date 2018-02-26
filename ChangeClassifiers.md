@@ -1,128 +1,72 @@
 Качество работы классификатора changeMLP из trainedNet
 
-Качество проверялось кодом: https://code.earthengine.google.com/b15172c5bae5b9ee51ea423b737271ab
+
+Набор ссылок №1
+===============
+Качество проверялось кодом: https://code.earthengine.google.com/b15172c5bae5b9ee51ea423b737271a://code.earthengine.google.com/cad421f367d8b6aa5588d9e764383029 
+
 Обучалось на выборке из коммита: 533a2833a596e82444eaa34d0c3dfa6fc6d35c1d
 
+## Ссылки на сети
+https://code.earthengine.google.com/a5a989e8be75ac9693d96325bd76ef21
 
-https://code.earthengine.google.com/cd0d295dd72a3dac9663ec8a120c3a85
-====================================================================
+Сеть changeMLP
 
 Change Mean, slice 0
-0.06934944490093586
+0.28784021358644085
 NoChange Mean, slice 0
-0.0744304138744924
+0.12211959493328134
 Change Mean, slice 1
-0.04475752803412266
+0.3836198584437003
 NoChange Mean, slice 1
-0.07296736962403814
+0.10149904390002606
 Change Mean, slice 2
 ComputedObject (Error)
 User memory limit exceeded.
 NoChange Mean, slice 2
-0.08197939632399386
+0.10684619963927747
 Change Mean, slice 3
-0.08526549732902064
+0.19467736443775735
 NoChange Mean, slice 3
-0.08653354770279503
+0.0820818719201947
 Change Mean, slice 4
 null
 NoChange Mean, slice 4
-0.07439781867496384
+0.06085352092567417
 Change Mean, slice 5
-0.04920455127870247
+0.1601070820727898
 NoChange Mean, slice 5
-0.07937231155482727
+0.0543402113466041
 Change Mean, slice 6
-0.04547823094651832
+0.2443619724317618
 NoChange Mean, slice 6
-0.08178716209499386
+0.08558771803335082
 Change Mean, slice 7
-0.0500077377367166
+0.24215960847730886
 NoChange Mean, slice 7
-0.10113875005174985
+0.08727765046925368
 Change Mean, slice 8
-0.04293998642481191
+0.3187442095399277
 NoChange Mean, slice 8
-0.09411376922058204
+0.10596602941716415
 Change Mean, slice 9
-0.03430991625699187
+0.31411147796961986
 NoChange Mean, slice 9
-0.08183384893435584
+0.11411860677299875
 Change Mean, slice 10
-0.06786208706856703
+0.18613827405857972
 NoChange Mean, slice 10
-0.0512177419878435
+0.10694962624010583
 Change Mean, slice 11
-0.050677020550184866
+0.16339390516891733
 NoChange Mean, slice 11
-0.042689131899284895
+0.10303546636286595
 Change Mean, slice 12
-0.06345331832884044
+0.1882331363858402
 NoChange Mean, slice 12
-0.018378707388144455
+0.08574677085832948
 Change Mean, slice 13
-0.06377406990688658
+0.1960189342292276
 NoChange Mean, slice 13
-0.027326877098790003
+0.07025514187450103
 
-
-https://code.earthengine.google.com/c305353147c3a64d93d7ba594eb13db8
-====================================================================
-
-Change Mean, slice 0
-0.5394385123244876
-NoChange Mean, slice 0
-0.25923962238296966
-Change Mean, slice 1
-0.5952884653182573
-NoChange Mean, slice 1
-0.3607033773953401
-Change Mean, slice 2
-ComputedObject (Error)
-User memory limit exceeded.
-NoChange Mean, slice 2
-0.3573773607139034
-Change Mean, slice 3
-0.44184952750935846
-NoChange Mean, slice 3
-0.3459288998432935
-Change Mean, slice 4
-null
-NoChange Mean, slice 4
-0.23548840514856395
-Change Mean, slice 5
-0.5066027034410429
-NoChange Mean, slice 5
-0.31342613033550454
-Change Mean, slice 6
-0.5715410184116522
-NoChange Mean, slice 6
-0.3344404749301672
-Change Mean, slice 7
-0.5609584601263139
-NoChange Mean, slice 7
-0.3479526187741649
-Change Mean, slice 8
-0.5896535877620948
-NoChange Mean, slice 8
-0.39340174858811017
-Change Mean, slice 9
-0.5756169208098599
-NoChange Mean, slice 9
-0.3923403682542369
-Change Mean, slice 10
-0.4073484979678789
-NoChange Mean, slice 10
-0.3343836592507604
-Change Mean, slice 11
-0.3616178063630231
-NoChange Mean, slice 11
-0.24619014717405677
-Change Mean, slice 12
-0.24608198672281917
-NoChange Mean, slice 12
-0.14315223743900646
-Change Mean, slice 13
-0.16149946492600611
-NoChange Mean, slice 13
-0.11290419275215727
