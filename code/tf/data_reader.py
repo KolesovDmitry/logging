@@ -29,7 +29,27 @@ def read_file(filename):
     data['nir_1'] = data['nir_1'] / 10000.0
     data['swir1_1'] = data['swir1_1'] / 10000.0
     data['swir2_1'] = data['swir2_1'] / 10000.0
+
+    data['tree_canopy_cover'] = data['tree_canopy_cover'] / 100.0
+
     data['change'] = (data['current_slice'] == data['slice']).astype(int)
+
+    # normalize current_slice
+    data['current_slice'] = data['current_slice'] / 14
+
+
+    # fix wrong band values
+    inputs = [
+        "blue", "blue_1",
+        "green", "green_1",
+        "red", "red_1",
+        "nir", "nir_1",
+        "swir1", "swir1_1",
+        "swir2", "swir2_1",
+    ]
+    for band in inputs:
+        data.loc[data[band] < 0, band] = 0.0
+        data.loc[data[band] > 1, band] = 1.0
 
     names = [
         "id", "tree_canopy_cover", "current_slice", "slice",
@@ -70,7 +90,9 @@ def split_data(data, train_val_test=(0.66, 0.17, 0.17), seed=0):
     val = data[data['id'].isin(val)]
     test = data[data['id'].isin(test)]
 
-    names = [  # "current_slice",
+    names = [
+        # "current_slice",
+        # "tree_canopy_cover",
         "blue", "blue_1",
         "green", "green_1",
         "red", "red_1",

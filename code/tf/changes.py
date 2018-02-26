@@ -22,49 +22,16 @@ from data_reader import read_file, get_data, split_data
 FLAGS = None
 
 
-
-def variable_summaries(var):
-  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-  with tf.name_scope('summaries'):
-    mean = tf.reduce_mean(var)
-    tf.summary.scalar('mean', mean)
-    with tf.name_scope('stddev'):
-      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    tf.summary.scalar('stddev', stddev)
-    tf.summary.scalar('max', tf.reduce_max(var))
-    tf.summary.scalar('min', tf.reduce_min(var))
-    tf.summary.histogram('histogram', var)
-
-
-def gv_process(g, v):
-    tf.summary.histogram('grad', g)
-    # g = tf.Print(g, [g], 'G(before): ')
-    g2 = tf.zeros_like(g, dtype=tf.float32)
-    v2 = tf.zeros_like(v, dtype=tf.float32)
-    # g2 = g
-    g2 = tf.clip_by_value(g, -1.0, 1.0)
-    v2 = v
-    # g2 = tf.Print(g2, [g2], 'G(after): ')
-    return g2, v2
-
-
-# Define training operation
-def training(loss, learning_rate, momentum):
-    optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
-
-    # learning_rate = tf.train.inverse_time_decay(start_learning_rate, global_step, decay_steps=1, decay_rate=decay_rate)
-    # optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-    # optimizer = tf.train.GradientDescentOptimizer(start_learning_rate)
-    grads_and_vars = optimizer.compute_gradients(loss)
-    gv2 = [gv_process(gv[0], gv[1]) for gv in grads_and_vars]
-    train_op = optimizer.apply_gradients(gv2)
-    return train_op
-
-
 def get_batch(data, size, input_count):
     batch = data[np.random.randint(data.shape[0], size=size), :]
+
+    # add a little of noise
+    errors = np.random.uniform(low=-0.0001, high=0.0001, size=(size, input_count))
+    x = batch[:, :input_count] + errors
+
+    y = batch[:, input_count:]
     
-    return batch[:, :input_count], batch[:, input_count:]
+    return x, y
     
 
 def model(x, W1, W2, W3, b1, b2, b3):
@@ -158,15 +125,16 @@ def main(_):
 
     reg_w = 0.0001
     loss = tf.reduce_mean(
-        tf.losses.sparse_softmax_cross_entropy(labels=[y_], logits=[tf.transpose([-logits, logits])]) +
-            reg_w*(tf.nn.l2_loss(W1)+tf.nn.l2_loss(W2)+tf.nn.l2_loss(W3)),
+        # tf.losses.sparse_softmax_cross_entropy(labels=[y_], logits=[tf.transpose([-logits, logits])]) +
+        loss1 + reg_w*(tf.nn.l2_loss(W1)+tf.nn.l2_loss(W2)+tf.nn.l2_loss(W3)),
         name='loss'
     )
 
 
-    tf.summary.scalar('cross entropy', loss)
+    tf.summary.scalar('Regularized loss', loss)
 
-    optimizer = training(loss, learning_rate=0.05, momentum=0.01)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+    optimizer = optimizer.minimize(loss)
 
     saver = tf.train.Saver(max_to_keep=1)
 
@@ -178,7 +146,7 @@ def main(_):
 
     tf.global_variables_initializer().run()
     # Train
-    best_loss = 9999999999999;
+    best_loss = 9999999999999
     for epoch in range(FLAGS.max_epoch):
         batch_xs, batch_ys = get_batch(train, 2**13, input_count)
         _, summary, train_loss, train_loss1 = sess.run(
