@@ -1,17 +1,19 @@
 digraph G {
-    graph [compound=true rankdir="LR"];
+    graph [compound=true rankdir="LR" fontname = "helvetica" nodesep="1.0" ratio=0.8];
+    node [fontname = "helvetica"];
+    edge [fontname = "helvetica"];
 	subgraph cluster_0 {
-        node [style=filled,color=white];
+        node [style=filled,color=white fontsize=12];
         "Выборка данных для обучения модели облачности" -> "Построение модели фильтрации облачности" 
         "Выборка данных для построения гармонической модели" -> "Построение гармонической модели" 
         "Выборка данных для обучения изменений" -> "Построение модели поиска изменений"
         style=filled;
-        color=lightgrey;
+        color=lightblue;
         label = "Обучение";
 	}
 
 	subgraph cluster_1 {
-        node [style=filled];
+        node [style=filled,color=lightblue,fontsize=12];
         color=blue;
         "Модель для фильтрации облачности" -> "Набор медианных срезов" 
         "Гармоническая модель поведения отражательной способности во времени" 
