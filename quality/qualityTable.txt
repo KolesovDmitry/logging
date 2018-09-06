@@ -1,27 +1,30 @@
 
 
-00229878966616f81080b1e22465f6eef4ada977:
+- 51d170cdc4e812500875eb03d545ba481cfd881a:
        Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
         0.0000  0.0000  0.0000  0.1802  0.1859  0.9766     270
+           Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+           0.00000 0.00004 0.06993 0.38750 0.90360 0.99980      84
 
 
-38ba9ffeaaa6dc2de1cbe106ca7a62876b373e9c:
-    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
-     0.0000  0.0000  0.0804  0.2734  0.5097  1.0000     356 
+- a54caba9a3a3bc8ff332dd5d489a07ba0ae693cd:
+        Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+        0.00000 0.00000 0.00939 0.15260 0.12420 1.00000     225 
     
 
 ce6d4f2905a4ce953d5a9498519d4357007af4b1:
     Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
     0.00000 0.00000 0.00000 0.09471 0.01837 1.00000     287 
     
-21b0335e97c3e9d076be19433249e7d773b3a34:
-    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
-    0.00000 0.00000 0.00000 0.04570 0.00083 0.97960     290 
-
-d8a18b8ebe690d141a4cff6ba185c256c6e53713:
-    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
-     0.0001  0.0592  0.2073  0.3753  0.6995  1.0000     354 
-
-44573c6215bb6bdec0570cccd2f477d7e3cae33e:
+- 75ff967e3a5fc1addec8af2b05a57475c1f24f0f:
        Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
-       0.00000 0.00554 0.03963 0.14260 0.15810 0.99700     270
+       0.00000 0.00000 0.00000 0.08872 0.04283 0.99970     190 
+
+- b53038a74a4da00148a0f96f46aa294ddd5ac45a:
+        Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+        0.00000 0.00002 0.00442 0.13140 0.11060 1.00000     204 
+
+- e41c92b8a4f5619cca468020c57c9e4aabbc196e:
+          Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+          0.00000 0.00125 0.01349 0.08820 0.08996 0.99700      84 
+
