@@ -1,0 +1,77 @@
+#!/bin/bash                                                                                                                                  
+                 
+                 
+# Простой скрипт для создания алармов из "сырых" растров вероятностей изменений.
+# Запускается в грасс, анализирует растры известных ранее рубок, создает файлы для дат засветов и их значимости
+
+# TODO: перетащить все в GEE для удобства работы
+                 
+# GLOBAL VARS:                                                                                                                               
+CURRENT_DATE=17874                                                                                                                           
+                                                                                                                                             
+NEW_RASTER="result_byte_$CURRENT_DATE"                                                                                                       
+NULL_RASTER="null$CURRENT_DATE"                                                                                                              
+CUMMULATIVE_RASTER=dateALL                                                                                                                   
+                                                                                                                                             
+###################################                                                                                                          
+function DO_ALL {                                                                                                                            
+                                                                                                                                             
+    RECLASS_RESULT=tmp_reslass.$$                                                                                                            
+                                                                                                                                             
+    r.null $CUMMULATIVE_RASTER setnull=0                                                                                                     
+                                                                                                                                             
+    echo "0 thru 75 = NULL                                                                                                                   
+    76 thru 100 = $CURRENT_DATE                                                                                                              
+    " | r.reclass --overwrite input=$NEW_RASTER output=$RECLASS_RESULT rules=-                                                               
+                                                                                                                                             
+    r.mapcalc "$NULL_RASTER = if(isnull($NEW_RASTER), 0, 1)"                                                                                 
+                                                                                                                                             
+                                                                                                                                             
+    # r.info $RECLASS_RESULT                                                                                                                 
+    # r.info $NULL_RASTER                                                                                                                    
+                                                                                                                                             
+    echo CLUMP                                                                                                                               
+    r.clump -dg $RECLASS_RESULT                                                                                                              
+    echo                                                                                                                                     
+                                                                                                                                             
+                                                                                                                                             
+    r.series in=$RECLASS_RESULT,$CUMMULATIVE_RASTER out=a.count,alarm.date met=count,minimum --o                                             
+    g.remove rast name=$RECLASS_RESULT -f                                                                                                    
+                                                                                                                                             
+    r.mapcalc "alarm.date = int(alarm.date)" --o     
+    
+    echo "0 = 0                                                                                                                              
+    1 = 2                                                                                                                                    
+    2 = 3                                                                                                                                    
+    " | r.reclass --overwrite input="a.count" output="alarm.conf" rules=-                                                                    
+                                                                                                                                             
+    # Нельзя сбрасывать в ноль no-data: будут неверно расчитываться минимумы дат                                                             
+    # поэтому сбросим no-data в ноль при экспорте                                                                                            
+    # r.null alarm.date null=0                                                                                                               
+    # r.null alarm.conf null=0                                                                                                               
+}                                                                                                                                            
+#######################################                                                                                                      
+                                                                                                                                             
+                                                                                                                                             
+                                                                                                                                             
+g.region all_data                                                                                                                            
+                                                                                                                                             
+# DO_ALL                                                                                                                                     
+                                                                                                                                             
+r.out.gdal $NULL_RASTER out=$NULL_RASTER.tif nodat=0 createopt="COMPRESS=DEFLATE" --o -f                                                     
+                                                                                                                                             
+                                                                                                                                             
+g.region khab                                                                                                                                
+r.out.gdal alarm.date out=date${CURRENT_DATE}khab.tif nodat=0 createopt="COMPRESS=DEFLATE" type=UInt16 --o -f                                
+r.out.gdal alarm.conf out=conf${CURRENT_DATE}khab.tif nodat=0 createopt="COMPRESS=DEFLATE" type=Byte --o -f                                  
+                                                                                                                                             
+g.region prim                                                                                                                                
+r.out.gdal alarm.date out=date${CURRENT_DATE}prim.tif nodat=0 createopt="COMPRESS=DEFLATE" type=UInt16 --o -f                                
+r.out.gdal alarm.conf out=conf${CURRENT_DATE}kprim.tif nodat=0 createopt="COMPRESS=DEFLATE" type=Byte  --o -f                                
+                                                                                                                                             
+echo "Не забудь переименовать alarm.conf в confALL и alarm.date и dataALL."                                                                  
+echo "Схема переименования примерно такая%                                                                                                   
+g.rename rast=dateALL,dateALL.before17874                                                                                                    
+g.rename rast=confALL,confALL.before17874                                                                                                    
+g.rename rast=alarm.conf,confALL                                                                                                             
+g.rename rast=alarm.date,dateALL"
